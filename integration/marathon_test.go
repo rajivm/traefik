@@ -61,7 +61,7 @@ func (s *MarathonSuite) TestConfigurationUpdate(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()
 
-	marathonURL := "http://marathon:8080"
+	marathonURL := "http://127.0.0.1:8080"
 	fmt.Printf("polling Marathon URL %s for availability\n", marathonURL)
 	// wait for marathon
 	err = try.GetRequest(fmt.Sprintf("%s/ping", marathonURL), 5*time.Minute, try.StatusCodeIs(http.StatusOK))
