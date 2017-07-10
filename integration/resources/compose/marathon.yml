@@ -67,7 +67,7 @@ services:
       - MARATHON_ZK=zk://zookeeper:2181/marathon
       - MARATHON_MASTER=zk://zookeeper:2181/mesos
 
-networks:
-  default:
-    external:
-      name: traefik_integration_testing
+# networks:
+#   default:
+#     external:
+#       name: traefik_integration_testing
