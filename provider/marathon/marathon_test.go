@@ -3,11 +3,11 @@ package marathon
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 
 	"github.com/containous/traefik/provider/marathon/mocks"
-	"github.com/containous/traefik/testhelpers"
 	"github.com/containous/traefik/types"
 	"github.com/gambol99/go-marathon"
 	"github.com/stretchr/testify/assert"
@@ -50,27 +50,12 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 		expectedBackends  map[string]*types.Backend
 	}{
 		{
-			desc: "simple application",
-			application: marathon.Application{
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-			},
-			task: marathon.Task{
-				Host:  "localhost",
-				Ports: []int{80},
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "127.0.0.1",
-						Protocol:  "tcp",
-					},
-				},
-			},
+			desc:        "simple application",
+			application: application(appPorts(80)),
+			task:        localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
 				"frontend-app": {
-					Backend:        "backend-app",
-					PassHostHeader: true,
-					BasicAuth:      []string{},
-					EntryPoints:    []string{},
+					Backend: "backend-app",
 					Routes: map[string]types.Route{
 						"route-host-app": {
 							Rule: "Host:app.docker.localhost",
@@ -92,30 +77,17 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 		},
 		{
 			desc: "load balancer / circuit breaker labels",
-			application: marathon.Application{
-
-				Ports: []int{80},
-				Labels: &map[string]string{
+			application: application(
+				appPorts(80),
+				labels(map[string]string{
 					types.LabelBackendLoadbalancerMethod:       "drr",
 					types.LabelBackendCircuitbreakerExpression: "NetworkErrorRatio() > 0.5",
-				},
-			},
-			task: marathon.Task{
-				Host:  "localhost",
-				Ports: []int{80},
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "127.0.0.1",
-						Protocol:  "tcp",
-					},
-				},
-			},
+				}),
+			),
+			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
 				"frontend-app": {
-					Backend:        "backend-app",
-					PassHostHeader: true,
-					BasicAuth:      []string{},
-					EntryPoints:    []string{},
+					Backend: "backend-app",
 					Routes: map[string]types.Route{
 						"route-host-app": {
 							Rule: "Host:app.docker.localhost",
@@ -142,29 +114,17 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 		},
 		{
 			desc: "general max connection labels",
-			application: marathon.Application{
-				Ports: []int{80},
-				Labels: &map[string]string{
+			application: application(
+				appPorts(80),
+				labels(map[string]string{
 					types.LabelBackendMaxconnAmount:        "1000",
 					types.LabelBackendMaxconnExtractorfunc: "client.ip",
-				},
-			},
-			task: marathon.Task{
-				Host:  "localhost",
-				Ports: []int{80},
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "127.0.0.1",
-						Protocol:  "tcp",
-					},
-				},
-			},
+				}),
+			),
+			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
 				"frontend-app": {
-					Backend:        "backend-app",
-					PassHostHeader: true,
-					BasicAuth:      []string{},
-					EntryPoints:    []string{},
+					Backend: "backend-app",
 					Routes: map[string]types.Route{
 						"route-host-app": {
 							Rule: "Host:app.docker.localhost",
@@ -188,29 +148,17 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			},
 		},
 		{
-			desc: "max connection amount label",
-			application: marathon.Application{
-				Ports: []int{80},
-				Labels: &map[string]string{
+			desc: "max connection amount label only",
+			application: application(
+				appPorts(80),
+				labels(map[string]string{
 					types.LabelBackendMaxconnAmount: "1000",
-				},
-			},
-			task: marathon.Task{
-				Host:  "localhost",
-				Ports: []int{80},
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "127.0.0.1",
-						Protocol:  "tcp",
-					},
-				},
-			},
+				}),
+			),
+			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
 				"frontend-app": {
-					Backend:        "backend-app",
-					PassHostHeader: true,
-					BasicAuth:      []string{},
-					EntryPoints:    []string{},
+					Backend: "backend-app",
 					Routes: map[string]types.Route{
 						"route-host-app": {
 							Rule: "Host:app.docker.localhost",
@@ -231,29 +179,17 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			},
 		},
 		{
-			desc: "max connection extractor function label",
-			application: marathon.Application{
-				Ports: []int{80},
-				Labels: &map[string]string{
+			desc: "max connection extractor function label only",
+			application: application(
+				appPorts(80),
+				labels(map[string]string{
 					types.LabelBackendMaxconnExtractorfunc: "client.ip",
-				},
-			},
-			task: marathon.Task{
-				Host:  "localhost",
-				Ports: []int{80},
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "127.0.0.1",
-						Protocol:  "tcp",
-					},
-				},
-			},
+				}),
+			),
+			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
 				"frontend-app": {
-					Backend:        "backend-app",
-					PassHostHeader: true,
-					BasicAuth:      []string{},
-					EntryPoints:    []string{},
+					Backend: "backend-app",
 					Routes: map[string]types.Route{
 						"route-host-app": {
 							Rule: "Host:app.docker.localhost",
@@ -275,29 +211,21 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 		},
 		{
 			desc: "health check labels",
-			application: marathon.Application{
-				Ports: []int{80},
-				Labels: &map[string]string{
+			application: application(
+				appPorts(80),
+				labels(map[string]string{
 					types.LabelBackendHealthcheckPath:     "/path",
 					types.LabelBackendHealthcheckInterval: "5m",
-				},
-			},
-			task: marathon.Task{
-				Host:  "127.0.0.1",
-				Ports: []int{80},
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "127.0.0.1",
-						Protocol:  "tcp",
-					},
-				},
-			},
+				}),
+			),
+
+			task: task(
+				host("127.0.0.1"),
+				taskPorts(80),
+			),
 			expectedFrontends: map[string]*types.Frontend{
 				"frontend-app": {
-					Backend:        "backend-app",
-					PassHostHeader: true,
-					BasicAuth:      []string{},
-					EntryPoints:    []string{},
+					Backend: "backend-app",
 					Routes: map[string]types.Route{
 						"route-host-app": {
 							Rule: "Host:app.docker.localhost",
@@ -326,9 +254,17 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 		c := c
 		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
+
 			c.application.ID = "/app"
 			c.task.ID = "task"
 			c.application.Tasks = []*marathon.Task{&c.task}
+
+			for _, frontend := range c.expectedFrontends {
+				frontend.PassHostHeader = true
+				frontend.BasicAuth = []string{}
+				frontend.EntryPoints = []string{}
+			}
+
 			fakeClient := newFakeClient(false,
 				marathon.Applications{Apps: []marathon.Application{c.application}})
 			provider := &Provider{
@@ -350,159 +286,110 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 
 func TestMarathonTaskFilter(t *testing.T) {
 	cases := []struct {
+		desc             string
 		task             marathon.Task
 		application      marathon.Application
 		expected         bool
 		exposedByDefault bool
 	}{
 		{
-			task: marathon.Task{
-				AppID: "missing-port",
-				Ports: []int{},
-			},
-			application: marathon.Application{
-				ID:     "missing-port",
-				Labels: &map[string]string{},
-			},
+			desc:             "missing port",
+			task:             task(),
+			application:      application(),
 			expected:         false,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "task-not-running",
-				Ports: []int{80},
-				State: "TASK_STAGING",
-			},
-			application: marathon.Application{
-				ID:     "task-not-running",
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-			},
+			desc: "task not running",
+			task: task(
+				taskPorts(80),
+				state(taskStateStaging),
+			),
+			application:      application(appPorts(80)),
 			expected:         false,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "existing-port",
-				Ports: []int{80},
-			},
-			application: marathon.Application{
-				ID:     "existing-port",
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-			},
+			desc:             "existing port",
+			task:             task(taskPorts(80)),
+			application:      application(appPorts(80)),
 			expected:         true,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "specify-both-port-index-and-number",
-				Ports: []int{80, 443},
-			},
-			application: marathon.Application{
-				ID:    "specify-both-port-index-and-number",
-				Ports: []int{80, 443},
-				Labels: &map[string]string{
+			desc: "ambiguous port specification",
+			task: task(taskPorts(80, 443)),
+			application: application(
+				appPorts(80, 443),
+				labels(map[string]string{
 					types.LabelPort:      "443",
 					types.LabelPortIndex: "1",
-				},
-			},
+				}),
+			),
 			expected:         false,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "healthcheck-available",
-				Ports: []int{80},
-			},
-			application: marathon.Application{
-				ID:     "healthcheck-available",
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-				HealthChecks: &[]marathon.HealthCheck{
-					*marathon.NewDefaultHealthCheck(),
-				},
-			},
+			desc: "healthcheck available",
+			task: task(taskPorts(80)),
+			application: application(
+				appPorts(80),
+				healthChecks(marathon.NewDefaultHealthCheck()),
+			),
 			expected:         true,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "healthcheck-false",
-				Ports: []int{80},
-				HealthCheckResults: []*marathon.HealthCheckResult{
-					{
-						Alive: false,
-					},
-				},
-			},
-			application: marathon.Application{
-				ID:     "healthcheck-false",
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-				HealthChecks: &[]marathon.HealthCheck{
-					*marathon.NewDefaultHealthCheck(),
-				},
-			},
+			desc: "healthcheck result false",
+			task: task(
+				taskPorts(80),
+				healthCheckResultLiveness(false),
+			),
+			application: application(
+				appPorts(80),
+				healthChecks(marathon.NewDefaultHealthCheck()),
+			),
 			expected:         false,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "healthcheck-mixed-results",
-				Ports: []int{80},
-				HealthCheckResults: []*marathon.HealthCheckResult{
-					{
-						Alive: true,
-					},
-					{
-						Alive: false,
-					},
-				},
-			},
-			application: marathon.Application{
-				ID:     "healthcheck-mixed-results",
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-				HealthChecks: &[]marathon.HealthCheck{
-					*marathon.NewDefaultHealthCheck(),
-				},
-			},
+			desc: "healthcheck results mixed",
+			task: task(
+				taskPorts(80),
+				healthCheckResultLiveness(true, false),
+			),
+			application: application(
+				appPorts(80),
+				healthChecks(marathon.NewDefaultHealthCheck()),
+			),
 			expected:         false,
 			exposedByDefault: true,
 		},
 		{
-			task: marathon.Task{
-				AppID: "healthcheck-alive",
-				Ports: []int{80},
-				HealthCheckResults: []*marathon.HealthCheckResult{
-					{
-						Alive: true,
-					},
-				},
-			},
-			application: marathon.Application{
-				ID:     "healthcheck-alive",
-				Ports:  []int{80},
-				Labels: &map[string]string{},
-				HealthChecks: &[]marathon.HealthCheck{
-					*marathon.NewDefaultHealthCheck(),
-				},
-			},
+			desc: "healthcheck result true",
+			task: task(
+				taskPorts(80),
+				healthCheckResultLiveness(true),
+			),
+			application: application(
+				appPorts(80),
+				healthChecks(marathon.NewDefaultHealthCheck()),
+			),
 			expected:         true,
 			exposedByDefault: true,
 		},
 	}
 
-	provider := &Provider{}
-	for i, c := range cases {
-		if c.task.State == "" {
-			c.task.State = taskStateRunning
-		}
-		actual := provider.taskFilter(c.task, c.application)
-		if actual != c.expected {
-			t.Fatalf("App %s (#%d): got %v, expected %v", c.task.AppID, i, actual, c.expected)
-		}
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.taskFilter(c.task, c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %v, expected %v", actual, c.expected)
+			}
+		})
 	}
 }
 
@@ -514,34 +401,26 @@ func TestMarathonApplicationFilterConstraints(t *testing.T) {
 		expected                bool
 	}{
 		{
-			desc: "tags missing",
-			application: marathon.Application{
-				ID:     "app",
-				Labels: &map[string]string{},
-			},
+			desc:                    "tags missing",
+			application:             application(),
 			marathonLBCompatibility: false,
 			expected:                false,
 		},
 		{
 			desc: "tag matching",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelTags: "valid",
-				},
-			},
+			application: application(labels(map[string]string{
+				types.LabelTags: "valid",
+			})),
 			marathonLBCompatibility: false,
 			expected:                true,
 		},
 		{
 			desc: "LB compatibility tag matching",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					"HAPROXY_GROUP": "valid",
-					types.LabelTags: "notvalid",
-				},
-			},
+			application: application(labels(map[string]string{
+				"HAPROXY_GROUP": "valid",
+				types.LabelTags: "notvalid",
+			})),
+
 			marathonLBCompatibility: true,
 			expected:                true,
 		},
@@ -570,46 +449,46 @@ func TestMarathonApplicationFilterConstraints(t *testing.T) {
 
 func TestMarathonApplicationFilterEnabled(t *testing.T) {
 	cases := []struct {
-		desc         string
-		exposed      bool
-		enabledLabel string
-		expected     bool
+		desc             string
+		exposedByDefault bool
+		enabledLabel     string
+		expected         bool
 	}{
 		{
-			desc:         "exposed",
-			exposed:      true,
-			enabledLabel: "",
-			expected:     true,
+			desc:             "exposed",
+			exposedByDefault: true,
+			enabledLabel:     "",
+			expected:         true,
 		},
 		{
-			desc:         "exposed and tolerated by valid label value",
-			exposed:      true,
-			enabledLabel: "true",
-			expected:     true,
+			desc:             "exposed and tolerated by valid label value",
+			exposedByDefault: true,
+			enabledLabel:     "true",
+			expected:         true,
 		},
 		{
-			desc:         "exposed and tolerated by invalid label value",
-			exposed:      true,
-			enabledLabel: "invalid",
-			expected:     true,
+			desc:             "exposed and tolerated by invalid label value",
+			exposedByDefault: true,
+			enabledLabel:     "invalid",
+			expected:         true,
 		},
 		{
-			desc:         "exposed but overridden by label",
-			exposed:      true,
-			enabledLabel: "false",
-			expected:     false,
+			desc:             "exposed but overridden by label",
+			exposedByDefault: true,
+			enabledLabel:     "false",
+			expected:         false,
 		},
 		{
-			desc:         "non-exposed",
-			exposed:      false,
-			enabledLabel: "",
-			expected:     false,
+			desc:             "non-exposed",
+			exposedByDefault: false,
+			enabledLabel:     "",
+			expected:         false,
 		},
 		{
-			desc:         "non-exposed but overridden by label",
-			exposed:      false,
-			enabledLabel: "true",
-			expected:     true,
+			desc:             "non-exposed but overridden by label",
+			exposedByDefault: false,
+			enabledLabel:     "true",
+			expected:         true,
 		},
 	}
 
@@ -617,13 +496,10 @@ func TestMarathonApplicationFilterEnabled(t *testing.T) {
 		c := c
 		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
-			provider := &Provider{ExposedByDefault: c.exposed}
-			app := marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelEnable: c.enabledLabel,
-				},
-			}
+			provider := &Provider{ExposedByDefault: c.exposedByDefault}
+			app := application(labels(map[string]string{
+				types.LabelEnable: c.enabledLabel,
+			}))
 			if provider.applicationFilter(app) != c.expected {
 				t.Errorf("got unexpected filtering = %t", !c.expected)
 			}
@@ -641,184 +517,82 @@ func TestMarathonGetPort(t *testing.T) {
 		expected    string
 	}{
 		{
-			desc: "port missing",
-			application: marathon.Application{
-				ID:     "app",
-				Labels: &map[string]string{},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{},
-			},
-			expected: "",
+			desc:        "port missing",
+			application: application(),
+			task:        task(),
+			expected:    "",
 		},
 		{
-			desc: "explicit port taken",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelPort: "80",
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{},
-			},
+			desc: "numeric port",
+			application: application(labels(map[string]string{
+				types.LabelPort: "80",
+			})),
+			task:     task(),
 			expected: "80",
 		},
 		{
-			desc: "illegal explicit port specified",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelPort: "foobar",
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{80},
-			},
+			desc: "string port",
+			application: application(labels(map[string]string{
+				types.LabelPort: "foobar",
+			})),
+			task:     task(taskPorts(80)),
 			expected: "",
 		},
 		{
-			desc: "illegal explicit port integer specified",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelPort: "-1",
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{80},
-			},
+			desc: "negative port",
+			application: application(labels(map[string]string{
+				types.LabelPort: "-1",
+			})),
+			task:     task(taskPorts(80)),
 			expected: "",
 		},
 		{
-			desc: "task port available",
-			application: marathon.Application{
-				ID:     "app",
-				Labels: &map[string]string{},
-				PortDefinitions: &[]marathon.PortDefinition{
-					{
-						Port: testhelpers.Intp(443),
-					},
-				},
-				IPAddressPerTask: &marathon.IPAddressPerTask{
-					Discovery: &marathon.Discovery{
-						Ports: &[]marathon.Port{
-							{
-								Number: 8000,
-							},
-						},
-					},
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{80},
-			},
-			expected: "80",
+			desc:        "task port available",
+			application: application(),
+			task:        task(taskPorts(80)),
+			expected:    "80",
 		},
 		{
-			desc: "port mapping port available",
-			application: marathon.Application{
-				ID:     "app",
-				Labels: &map[string]string{},
-				PortDefinitions: &[]marathon.PortDefinition{
-					{
-						Port: testhelpers.Intp(443),
-					},
-				},
-				IPAddressPerTask: &marathon.IPAddressPerTask{
-					Discovery: &marathon.Discovery{
-						Ports: &[]marathon.Port{
-							{
-								Number: 8000,
-							},
-						},
-					},
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{},
-			},
+			desc: "port definition available",
+			application: application(
+				portDefinition(443),
+			),
+			task:     task(),
 			expected: "443",
 		},
 		{
-			desc: "IP-per-task port available",
-			application: marathon.Application{
-				ID:     "app",
-				Labels: &map[string]string{},
-				IPAddressPerTask: &marathon.IPAddressPerTask{
-					Discovery: &marathon.Discovery{
-						Ports: &[]marathon.Port{
-							{
-								Number: 8000,
-							},
-						},
-					},
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{},
-			},
-			expected: "8000",
+			desc:        "IP-per-task port available",
+			application: application(ipAddrPerTask(8000)),
+			task:        task(),
+			expected:    "8000",
 		},
 		{
-			desc: "first port taken from multiple ports",
-			application: marathon.Application{
-				ID:     "app",
-				Labels: &map[string]string{},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{80, 443},
-			},
-			expected: "80",
+			desc:        "multiple task ports available",
+			application: application(),
+			task:        task(taskPorts(80, 443)),
+			expected:    "80",
 		},
 		{
-			desc: "indexed port taken",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelPortIndex: "1",
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{80, 443},
-			},
+			desc: "numeric port index specified",
+			application: application(labels(map[string]string{
+				types.LabelPortIndex: "1",
+			})),
+			task:     task(taskPorts(80, 443)),
 			expected: "443",
 		},
 		{
-			desc: "illegal port index specified",
-			application: marathon.Application{
-				ID: "app",
-				Labels: &map[string]string{
-					types.LabelPortIndex: "foobar",
-				},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{80},
-			},
+			desc: "string port index specified",
+			application: application(labels(map[string]string{
+				types.LabelPortIndex: "foobar",
+			})),
+			task:     task(taskPorts(80)),
 			expected: "",
 		},
 		{
-			desc: "task port preferred over application port",
-			application: marathon.Application{
-				ID:     "app",
-				Ports:  []int{9999},
-				Labels: &map[string]string{},
-			},
-			task: marathon.Task{
-				AppID: "app",
-				Ports: []int{7777},
-			},
-			expected: "7777",
+			desc:        "task and application ports specified",
+			application: application(appPorts(9999)),
+			task:        task(taskPorts(7777)),
+			expected:    "7777",
 		},
 	}
 
@@ -828,34 +602,28 @@ func TestMarathonGetPort(t *testing.T) {
 			t.Parallel()
 			actual := provider.getPort(c.task, c.application)
 			if actual != c.expected {
-				t.Errorf("got %q, want %q", c.expected, actual)
+				t.Errorf("actual %q, expected %q", c.expected, actual)
 			}
 		})
 	}
 }
 
 func TestMarathonGetWeight(t *testing.T) {
-	provider := &Provider{}
-
 	cases := []struct {
 		desc        string
 		application marathon.Application
 		expected    string
 	}{
 		{
-			desc: "weight label missing",
-			application: marathon.Application{
-				Labels: &map[string]string{},
-			},
-			expected: "0",
+			desc:        "label missing",
+			application: application(),
+			expected:    "0",
 		},
 		{
-			desc: "weight label existing",
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelWeight: "10",
-				},
-			},
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelWeight: "10",
+			})),
 			expected: "10",
 		},
 	}
@@ -864,68 +632,66 @@ func TestMarathonGetWeight(t *testing.T) {
 		c := c
 		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
+			provider := &Provider{}
 			actual := provider.getWeight(c.application)
 			if actual != c.expected {
-				t.Fatalf("actual %s, expected %s", actual, c.expected)
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
 			}
 		})
 	}
 }
 
 func TestMarathonGetDomain(t *testing.T) {
-	provider := &Provider{
-		Domain: "docker.localhost",
-	}
-
-	applications := []struct {
-		application marathon.Application
-		expected    string
-	}{
-		{
-			application: marathon.Application{
-				Labels: &map[string]string{}},
-			expected: "docker.localhost",
-		},
-		{
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelDomain: "foo.bar",
-				},
-			},
-			expected: "foo.bar",
-		},
-	}
-
-	for _, a := range applications {
-		actual := provider.getDomain(a.application)
-		if actual != a.expected {
-			t.Fatalf("expected %q, got %q", a.expected, actual)
-		}
-	}
-}
-
-func TestMarathonGetProtocol(t *testing.T) {
-	provider := &Provider{}
-
 	cases := []struct {
 		desc        string
 		application marathon.Application
 		expected    string
 	}{
 		{
-			desc: "protocol label missing",
-			application: marathon.Application{
-				Labels: &map[string]string{},
-			},
-			expected: "http",
+			desc:        "label missing",
+			application: application(),
+			expected:    "docker.localhost",
 		},
 		{
-			desc: "protocol label existing",
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelProtocol: "https",
-				},
-			},
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelDomain: "foo.bar",
+			})),
+			expected: "foo.bar",
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{
+				Domain: "docker.localhost",
+			}
+			actual := provider.getDomain(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
+	}
+}
+
+func TestMarathonGetProtocol(t *testing.T) {
+	cases := []struct {
+		desc        string
+		application marathon.Application
+		expected    string
+	}{
+		{
+			desc:        "label missing",
+			application: application(),
+			expected:    "http",
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelProtocol: "https",
+			})),
 			expected: "https",
 		},
 	}
@@ -934,440 +700,565 @@ func TestMarathonGetProtocol(t *testing.T) {
 		c := c
 		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
+			provider := &Provider{}
 			actual := provider.getProtocol(c.application)
 			if actual != c.expected {
-				t.Errorf("got protocol '%s', want '%s'", actual, c.expected)
+				t.Errorf("actual %q, expected %q", actual, c.expected)
+			}
+		})
+	}
+}
+
+func TestMarathonGetSticky(t *testing.T) {
+	cases := []struct {
+		desc        string
+		application marathon.Application
+		expected    string
+	}{
+		{
+			desc:        "label missing",
+			application: application(),
+			expected:    "false",
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelBackendLoadbalancerSticky: "true",
+			})),
+			expected: "true",
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getSticky(c.application)
+			if actual != c.expected {
+				t.Errorf("actual %q, expected %q", actual, c.expected)
 			}
 		})
 	}
 }
 
 func TestMarathonGetPassHostHeader(t *testing.T) {
-	provider := &Provider{}
-
-	applications := []struct {
+	cases := []struct {
+		desc        string
 		application marathon.Application
 		expected    string
 	}{
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{}},
-			expected: "true",
+			desc:        "label missing",
+			application: application(),
+			expected:    "true",
 		},
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelFrontendPassHostHeader: "false",
-				},
-			},
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelFrontendPassHostHeader: "false",
+			})),
 			expected: "false",
 		},
 	}
 
-	for _, a := range applications {
-		actual := provider.getPassHostHeader(a.application)
-		if actual != a.expected {
-			t.Fatalf("expected %q, got %q", a.expected, actual)
-		}
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getPassHostHeader(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
+	}
+}
+
+func TestMarathonMaxConnAmount(t *testing.T) {
+	cases := []struct {
+		desc        string
+		application marathon.Application
+		expected    int64
+	}{
+		{
+			desc:        "label missing",
+			application: application(),
+			expected:    math.MaxInt64,
+		},
+		{
+			desc: "non-integer value",
+			application: application(labels(map[string]string{
+				types.LabelBackendMaxconnAmount: "foobar",
+			})),
+			expected: math.MaxInt64,
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelBackendMaxconnAmount: "32",
+			})),
+			expected: 32,
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getMaxConnAmount(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %d, expected %d", actual, c.expected)
+			}
+		})
+	}
+}
+
+func TestMarathonGetMaxConnExtractorFunc(t *testing.T) {
+	cases := []struct {
+		desc        string
+		application marathon.Application
+		expected    string
+	}{
+		{
+			desc:        "label missing",
+			application: application(),
+			expected:    "request.host",
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelBackendMaxconnExtractorfunc: "client.ip",
+			})),
+			expected: "client.ip",
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getMaxConnExtractorFunc(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
+	}
+}
+
+func TestMarathonGetLoadBalancerMethod(t *testing.T) {
+	cases := []struct {
+		desc        string
+		application marathon.Application
+		expected    string
+	}{
+		{
+			desc:        "label missing",
+			application: application(),
+			expected:    "wrr",
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelBackendLoadbalancerMethod: "drr",
+			})),
+			expected: "drr",
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getLoadBalancerMethod(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
+	}
+}
+
+func TestMarathonGetCircuitBreakerExpression(t *testing.T) {
+	cases := []struct {
+		desc        string
+		application marathon.Application
+		expected    string
+	}{
+		{
+			desc:        "label missing",
+			application: application(),
+			expected:    "NetworkErrorRatio() > 1",
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelBackendCircuitbreakerExpression: "NetworkErrorRatio() > 0.5",
+			})),
+			expected: "NetworkErrorRatio() > 0.5",
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getCircuitBreakerExpression(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
 	}
 }
 
 func TestMarathonGetEntryPoints(t *testing.T) {
-	provider := &Provider{}
-
-	applications := []struct {
+	cases := []struct {
+		desc        string
 		application marathon.Application
 		expected    []string
 	}{
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{}},
-			expected: []string{},
+			desc:        "label missing",
+			application: application(),
+			expected:    []string{},
 		},
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelFrontendEntryPoints: "http,https",
-				},
-			},
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelFrontendEntryPoints: "http,https",
+			})),
 			expected: []string{"http", "https"},
 		},
 	}
 
-	for _, a := range applications {
-		actual := provider.getEntryPoints(a.application)
-
-		if !reflect.DeepEqual(a.expected, actual) {
-			t.Fatalf("expected %#v, got %#v", a.expected, actual)
-		}
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getEntryPoints(c.application)
+			if !reflect.DeepEqual(actual, c.expected) {
+				t.Fatalf("actual %#v, expected %#v", actual, c.expected)
+			}
+		})
 	}
 }
 
 func TestMarathonGetFrontendRule(t *testing.T) {
-	applications := []struct {
+	cases := []struct {
+		desc                    string
 		application             marathon.Application
 		expected                string
 		marathonLBCompatibility bool
 	}{
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{}},
+			desc:                    "label missing",
+			application:             application(appID("test")),
 			marathonLBCompatibility: true,
-			expected:                "Host:.docker.localhost",
+			expected:                "Host:test.docker.localhost",
 		},
 		{
-			application: marathon.Application{
-				ID: "test",
-				Labels: &map[string]string{
+			desc: "HAProxy vhost available and LB compat disabled",
+			application: application(
+				appID("test"),
+				labels(map[string]string{
 					"HAPROXY_0_VHOST": "foo.bar",
-				},
-			},
+				}),
+			),
 			marathonLBCompatibility: false,
 			expected:                "Host:test.docker.localhost",
 		},
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelFrontendRule: "Host:foo.bar",
-					"HAPROXY_0_VHOST":       "notvalid",
-				},
-			},
+			desc: "HAProxy vhost available and LB compat enabled",
+			application: application(labels(map[string]string{
+				"HAPROXY_0_VHOST": "foo.bar",
+			})),
 			marathonLBCompatibility: true,
 			expected:                "Host:foo.bar",
 		},
 		{
-			application: marathon.Application{
-				Labels: &map[string]string{
-					"HAPROXY_0_VHOST": "foo.bar",
-				},
-			},
+			desc: "frontend rule available",
+
+			application: application(labels(map[string]string{
+				types.LabelFrontendRule: "Host:foo.bar",
+				"HAPROXY_0_VHOST":       "unused",
+			})),
 			marathonLBCompatibility: true,
 			expected:                "Host:foo.bar",
 		},
 	}
 
-	for _, a := range applications {
-		provider := &Provider{
-			Domain:                  "docker.localhost",
-			MarathonLBCompatibility: a.marathonLBCompatibility,
-		}
-		actual := provider.getFrontendRule(a.application)
-		if actual != a.expected {
-			t.Fatalf("expected %q, got %q", a.expected, actual)
-		}
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{
+				Domain:                  "docker.localhost",
+				MarathonLBCompatibility: c.marathonLBCompatibility,
+			}
+			actual := provider.getFrontendRule(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
 	}
 }
 
 func TestMarathonGetBackend(t *testing.T) {
-	provider := &Provider{}
-
-	applications := []struct {
+	cases := []struct {
+		desc        string
 		application marathon.Application
 		expected    string
 	}{
 		{
-			application: marathon.Application{
-				ID: "foo",
-				Labels: &map[string]string{
-					types.LabelBackend: "bar",
-				},
-			},
+			desc:        "label missing",
+			application: application(appID("/group/app")),
+			expected:    "-group-app",
+		},
+		{
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelBackend: "bar",
+			})),
 			expected: "bar",
 		},
 	}
 
-	for _, a := range applications {
-		actual := provider.getBackend(a.application)
-		if actual != a.expected {
-			t.Fatalf("expected %q, got %q", a.expected, actual)
-		}
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{}
+			actual := provider.getBackend(c.application)
+			if actual != c.expected {
+				t.Fatalf("actual %q, expected %q", actual, c.expected)
+			}
+		})
 	}
 }
 
 func TestMarathonGetSubDomain(t *testing.T) {
-	providerGroups := &Provider{GroupsAsSubDomains: true}
-	providerNoGroups := &Provider{GroupsAsSubDomains: false}
-
-	apps := []struct {
-		path     string
-		expected string
-		provider *Provider
+	cases := []struct {
+		path             string
+		expected         string
+		groupAsSubDomain bool
 	}{
-		{"/test", "test", providerNoGroups},
-		{"/test", "test", providerGroups},
-		{"/a/b/c/d", "d.c.b.a", providerGroups},
-		{"/b/a/d/c", "c.d.a.b", providerGroups},
-		{"/d/c/b/a", "a.b.c.d", providerGroups},
-		{"/c/d/a/b", "b.a.d.c", providerGroups},
-		{"/a/b/c/d", "a-b-c-d", providerNoGroups},
-		{"/b/a/d/c", "b-a-d-c", providerNoGroups},
-		{"/d/c/b/a", "d-c-b-a", providerNoGroups},
-		{"/c/d/a/b", "c-d-a-b", providerNoGroups},
+		{"/test", "test", false},
+		{"/test", "test", true},
+		{"/a/b/c/d", "d.c.b.a", true},
+		{"/b/a/d/c", "c.d.a.b", true},
+		{"/d/c/b/a", "a.b.c.d", true},
+		{"/c/d/a/b", "b.a.d.c", true},
+		{"/a/b/c/d", "a-b-c-d", false},
+		{"/b/a/d/c", "b-a-d-c", false},
+		{"/d/c/b/a", "d-c-b-a", false},
+		{"/c/d/a/b", "c-d-a-b", false},
 	}
 
-	for _, a := range apps {
-		actual := a.provider.getSubDomain(a.path)
-
-		if actual != a.expected {
-			t.Errorf("expected %q, got %q", a.expected, actual)
-		}
+	for _, c := range cases {
+		c := c
+		t.Run(fmt.Sprintf("path=%s,group=%t", c.path, c.groupAsSubDomain), func(t *testing.T) {
+			t.Parallel()
+			provider := &Provider{GroupsAsSubDomains: c.groupAsSubDomain}
+			actual := provider.getSubDomain(c.path)
+			if actual != c.expected {
+				t.Errorf("actual %q, expected %q", actual, c.expected)
+			}
+		})
 	}
 }
 
 func TestMarathonHasHealthCheckLabels(t *testing.T) {
-	tests := []struct {
-		desc  string
-		value *string
-		want  bool
+	cases := []struct {
+		desc     string
+		value    *string
+		expected bool
 	}{
 		{
-			desc:  "label missing",
-			value: nil,
-			want:  false,
+			desc:     "label missing",
+			value:    nil,
+			expected: false,
 		},
 		{
-			desc:  "empty path",
-			value: stringp(""),
-			want:  false,
+			desc:     "empty path",
+			value:    stringp(""),
+			expected: false,
 		},
 		{
-			desc:  "non-empty path",
-			value: stringp("/path"),
-			want:  true,
+			desc:     "non-empty path",
+			value:    stringp("/path"),
+			expected: true,
 		},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(test.desc, func(t *testing.T) {
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
-			app := marathon.Application{
-				Labels: &map[string]string{},
+			app := application()
+			if c.value != nil {
+				app.AddLabel(types.LabelBackendHealthcheckPath, *c.value)
 			}
-			if test.value != nil {
-				app.AddLabel(types.LabelBackendHealthcheckPath, *test.value)
-			}
-			prov := &Provider{}
-			got := prov.hasHealthCheckLabels(app)
-			if got != test.want {
-				t.Errorf("got %t, want %t", got, test.want)
+			provider := &Provider{}
+			actual := provider.hasHealthCheckLabels(app)
+			if actual != c.expected {
+				t.Errorf("actual %t, expected %t", actual, c.expected)
 			}
 		})
 	}
 }
 
 func TestMarathonGetHealthCheckPath(t *testing.T) {
-	tests := []struct {
-		desc  string
-		value *string
-		want  string
+	cases := []struct {
+		desc     string
+		value    *string
+		expected string
 	}{
 		{
-			desc:  "label missing",
-			value: nil,
-			want:  "",
+			desc:     "label missing",
+			value:    nil,
+			expected: "",
 		},
 		{
-			desc:  "path existing",
-			value: stringp("/path"),
-			want:  "/path",
+			desc:     "path existing",
+			value:    stringp("/path"),
+			expected: "/path",
 		},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(test.desc, func(t *testing.T) {
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
-			app := marathon.Application{}
-			app.EmptyLabels()
-			if test.value != nil {
-				app.AddLabel(types.LabelBackendHealthcheckPath, *test.value)
+			app := application()
+			if c.value != nil {
+				app.AddLabel(types.LabelBackendHealthcheckPath, *c.value)
 			}
-			prov := &Provider{}
-			got := prov.getHealthCheckPath(app)
-			if got != test.want {
-				t.Errorf("got %s, want %s", got, test.want)
+			provider := &Provider{}
+			actual := provider.getHealthCheckPath(app)
+			if actual != c.expected {
+				t.Errorf("actual %q, expected %q", actual, c.expected)
 			}
 		})
 	}
 }
 
 func TestMarathonGetHealthCheckInterval(t *testing.T) {
-	tests := []struct {
-		desc  string
-		value *string
-		want  string
+	cases := []struct {
+		desc     string
+		value    *string
+		expected string
 	}{
 		{
-			desc:  "label missing",
-			value: nil,
-			want:  "",
+			desc:     "label missing",
+			value:    nil,
+			expected: "",
 		},
 		{
-			desc:  "interval existing",
-			value: stringp("5m"),
-			want:  "5m",
+			desc:     "interval existing",
+			value:    stringp("5m"),
+			expected: "5m",
 		},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(test.desc, func(t *testing.T) {
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
-			app := marathon.Application{
-				Labels: &map[string]string{},
+			app := application()
+			if c.value != nil {
+				app.AddLabel(types.LabelBackendHealthcheckInterval, *c.value)
 			}
-			if test.value != nil {
-				app.AddLabel(types.LabelBackendHealthcheckInterval, *test.value)
-			}
-			prov := &Provider{}
-			got := prov.getHealthCheckInterval(app)
-			if got != test.want {
-				t.Errorf("got %s, want %s", got, test.want)
+			provider := &Provider{}
+			actual := provider.getHealthCheckInterval(app)
+			if actual != c.expected {
+				t.Errorf("actual %q, expected %q", actual, c.expected)
 			}
 		})
 	}
 }
 
-func stringp(s string) *string {
-	return &s
-}
-
 func TestGetBackendServer(t *testing.T) {
-	appID := "appId"
 	host := "host"
-	tests := []struct {
+	cases := []struct {
 		desc              string
 		application       marathon.Application
-		addIPAddrPerTask  bool
 		task              marathon.Task
 		forceTaskHostname bool
-		wantServer        string
+		expectedServer    string
 	}{
 		{
-			desc:       "application without IP-per-task",
-			wantServer: host,
+			desc:           "application without IP-per-task",
+			application:    application(),
+			expectedServer: host,
 		},
 		{
 			desc:              "task hostname override",
-			addIPAddrPerTask:  true,
+			application:       application(ipAddrPerTask(8000)),
 			forceTaskHostname: true,
-			wantServer:        host,
+			expectedServer:    host,
 		},
 		{
-			desc: "task IP address missing",
-			task: marathon.Task{
-				IPAddresses: []*marathon.IPAddress{},
-			},
-			addIPAddrPerTask: true,
-			wantServer:       "",
+			desc:           "task IP address missing",
+			application:    application(ipAddrPerTask(8000)),
+			task:           task(),
+			expectedServer: "",
 		},
 		{
-			desc: "single task IP address",
-			task: marathon.Task{
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "1.1.1.1",
-					},
-				},
-			},
-			addIPAddrPerTask: true,
-			wantServer:       "1.1.1.1",
+			desc:           "single task IP address",
+			application:    application(ipAddrPerTask(8000)),
+			task:           task(ipAddresses("1.1.1.1")),
+			expectedServer: "1.1.1.1",
 		},
 		{
-			desc: "multiple task IP addresses without index label",
-			task: marathon.Task{
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "1.1.1.1",
-					},
-					{
-						IPAddress: "2.2.2.2",
-					},
-				},
-			},
-			addIPAddrPerTask: true,
-			wantServer:       "",
+			desc:           "multiple task IP addresses without index label",
+			application:    application(ipAddrPerTask(8000)),
+			task:           task(ipAddresses("1.1.1.1", "2.2.2.2")),
+			expectedServer: "",
 		},
 		{
 			desc: "multiple task IP addresses with invalid index label",
-			application: marathon.Application{
-				Labels: &map[string]string{"traefik.ipAddressIdx": "invalid"},
-			},
-			task: marathon.Task{
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "1.1.1.1",
-					},
-					{
-						IPAddress: "2.2.2.2",
-					},
-				},
-			},
-			addIPAddrPerTask: true,
-			wantServer:       "",
+			application: application(
+				labels(map[string]string{
+					"traefik.ipAddressIdx": "invalid",
+				}),
+				ipAddrPerTask(8000),
+			),
+			task:           task(ipAddresses("1.1.1.1", "2.2.2.2")),
+			expectedServer: "",
 		},
 		{
 			desc: "multiple task IP addresses with valid index label",
-			application: marathon.Application{
-				Labels: &map[string]string{"traefik.ipAddressIdx": "1"},
-			},
-			task: marathon.Task{
-				IPAddresses: []*marathon.IPAddress{
-					{
-						IPAddress: "1.1.1.1",
-					},
-					{
-						IPAddress: "2.2.2.2",
-					},
-				},
-			},
-			addIPAddrPerTask: true,
-			wantServer:       "2.2.2.2",
+			application: application(
+				labels(map[string]string{
+					"traefik.ipAddressIdx": "1",
+				}),
+				ipAddrPerTask(8000),
+			),
+			task:           task(ipAddresses("1.1.1.1", "2.2.2.2")),
+			expectedServer: "2.2.2.2",
 		},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(test.desc, func(t *testing.T) {
+	for _, c := range cases {
+		c := c
+		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
-			provider := &Provider{ForceTaskHostname: test.forceTaskHostname}
-
-			// Populate application.
-			if test.application.ID == "" {
-				test.application.ID = appID
-			}
-			if test.application.Labels == nil {
-				test.application.Labels = &map[string]string{}
-			}
-			if test.addIPAddrPerTask {
-				test.application.IPAddressPerTask = &marathon.IPAddressPerTask{
-					Discovery: &marathon.Discovery{
-						Ports: &[]marathon.Port{
-							{
-								Number: 8000,
-								Name:   "port",
-							},
-						},
-					},
-				}
-			}
-
-			// Populate task.
-			test.task.AppID = appID
-			test.task.Host = "host"
-
-			gotServer := provider.getBackendServer(test.task, test.application)
-
-			if gotServer != test.wantServer {
-				t.Errorf("got server '%s', want '%s'", gotServer, test.wantServer)
+			provider := &Provider{ForceTaskHostname: c.forceTaskHostname}
+			c.task.Host = host
+			actualServer := provider.getBackendServer(c.task, c.application)
+			if actualServer != c.expectedServer {
+				t.Errorf("actual %q, expected %q", actualServer, c.expectedServer)
 			}
 		})
 	}
 }
 
 func TestParseIndex(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		idxStr        string
 		length        int
 		shouldSucceed bool
@@ -1407,44 +1298,39 @@ func TestParseIndex(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(fmt.Sprintf("parseIndex(%s, %d)", test.idxStr, test.length), func(t *testing.T) {
+	for _, c := range cases {
+		c := c
+		t.Run(fmt.Sprintf("parseIndex(%s, %d)", c.idxStr, c.length), func(t *testing.T) {
 			t.Parallel()
-			parsed, err := parseIndex(test.idxStr, test.length)
+			parsed, err := parseIndex(c.idxStr, c.length)
 
-			if test.shouldSucceed != (err == nil) {
-				t.Fatalf("got error '%s', want error: %t", err, !test.shouldSucceed)
+			if c.shouldSucceed != (err == nil) {
+				t.Fatalf("actual error %q, expected error: %t", err, !c.shouldSucceed)
 			}
 
-			if test.shouldSucceed && parsed != test.parsed {
-				t.Errorf("got parsed index %d, want %d", parsed, test.parsed)
+			if c.shouldSucceed && parsed != c.parsed {
+				t.Errorf("actual parsed index %d, expected %d", parsed, c.parsed)
 			}
 		})
 	}
 }
 
 func TestMarathonGetBasicAuth(t *testing.T) {
-	provider := &Provider{}
-
 	cases := []struct {
 		desc        string
 		application marathon.Application
 		expected    []string
 	}{
 		{
-			desc: "basic auth label is empty",
-			application: marathon.Application{
-				Labels: &map[string]string{}},
-			expected: []string{},
+			desc:        "label missing",
+			application: application(),
+			expected:    []string{},
 		},
 		{
-			desc: "basic auth label is set with user:password",
-			application: marathon.Application{
-				Labels: &map[string]string{
-					types.LabelFrontendAuthBasic: "user:password",
-				},
-			},
+			desc: "label existing",
+			application: application(labels(map[string]string{
+				types.LabelFrontendAuthBasic: "user:password",
+			})),
 			expected: []string{"user:password"},
 		},
 	}
@@ -1453,11 +1339,15 @@ func TestMarathonGetBasicAuth(t *testing.T) {
 		c := c
 		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
-
+			provider := &Provider{}
 			actual := provider.getBasicAuth(c.application)
-			if !reflect.DeepEqual(c.expected, actual) {
-				t.Errorf("expected %q, got %q", c.expected, actual)
+			if !reflect.DeepEqual(actual, c.expected) {
+				t.Errorf("actual %q, expected %q", actual, c.expected)
 			}
 		})
 	}
+}
+
+func stringp(s string) *string {
+	return &s
 }
