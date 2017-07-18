@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/containous/traefik/provider/marathon/mocks"
+	"github.com/containous/traefik/testhelpers"
 	"github.com/containous/traefik/types"
 	"github.com/gambol99/go-marathon"
 	"github.com/stretchr/testify/assert"
@@ -1083,12 +1084,12 @@ func TestMarathonHasHealthCheckLabels(t *testing.T) {
 		},
 		{
 			desc:     "empty path",
-			value:    stringp(""),
+			value:    testhelpers.Stringp(""),
 			expected: false,
 		},
 		{
 			desc:     "non-empty path",
-			value:    stringp("/path"),
+			value:    testhelpers.Stringp("/path"),
 			expected: true,
 		},
 	}
@@ -1343,8 +1344,4 @@ func TestMarathonGetBasicAuth(t *testing.T) {
 			}
 		})
 	}
-}
-
-func stringp(s string) *string {
-	return &s
 }
