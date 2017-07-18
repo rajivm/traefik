@@ -218,7 +218,6 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 					types.LabelBackendHealthcheckInterval: "5m",
 				}),
 			),
-
 			task: task(
 				host("127.0.0.1"),
 				taskPorts(80),
