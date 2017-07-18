@@ -27,11 +27,9 @@ func appPorts(ports ...int) func(*marathon.Application) {
 	}
 }
 
-func labels(l map[string]string) func(*marathon.Application) {
+func label(key, value string) func(*marathon.Application) {
 	return func(app *marathon.Application) {
-		for k, v := range l {
-			app.AddLabel(k, v)
-		}
+		app.AddLabel(key, value)
 	}
 }
 

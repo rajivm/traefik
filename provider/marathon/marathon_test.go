@@ -80,10 +80,8 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			desc: "load balancer / circuit breaker labels",
 			application: application(
 				appPorts(80),
-				labels(map[string]string{
-					types.LabelBackendLoadbalancerMethod:       "drr",
-					types.LabelBackendCircuitbreakerExpression: "NetworkErrorRatio() > 0.5",
-				}),
+				label(types.LabelBackendLoadbalancerMethod, "drr"),
+				label(types.LabelBackendCircuitbreakerExpression, "NetworkErrorRatio() > 0.5"),
 			),
 			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
@@ -117,10 +115,8 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			desc: "general max connection labels",
 			application: application(
 				appPorts(80),
-				labels(map[string]string{
-					types.LabelBackendMaxconnAmount:        "1000",
-					types.LabelBackendMaxconnExtractorfunc: "client.ip",
-				}),
+				label(types.LabelBackendMaxconnAmount, "1000"),
+				label(types.LabelBackendMaxconnExtractorfunc, "client.ip"),
 			),
 			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
@@ -152,9 +148,7 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			desc: "max connection amount label only",
 			application: application(
 				appPorts(80),
-				labels(map[string]string{
-					types.LabelBackendMaxconnAmount: "1000",
-				}),
+				label(types.LabelBackendMaxconnAmount, "1000"),
 			),
 			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
@@ -183,9 +177,7 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			desc: "max connection extractor function label only",
 			application: application(
 				appPorts(80),
-				labels(map[string]string{
-					types.LabelBackendMaxconnExtractorfunc: "client.ip",
-				}),
+				label(types.LabelBackendMaxconnExtractorfunc, "client.ip"),
 			),
 			task: localhostTask(taskPorts(80)),
 			expectedFrontends: map[string]*types.Frontend{
@@ -214,10 +206,8 @@ func TestMarathonLoadConfigNonAPIErrors(t *testing.T) {
 			desc: "health check labels",
 			application: application(
 				appPorts(80),
-				labels(map[string]string{
-					types.LabelBackendHealthcheckPath:     "/path",
-					types.LabelBackendHealthcheckInterval: "5m",
-				}),
+				label(types.LabelBackendHealthcheckPath, "/path"),
+				label(types.LabelBackendHealthcheckInterval, "5m"),
 			),
 			task: task(
 				host("127.0.0.1"),
@@ -321,10 +311,8 @@ func TestMarathonTaskFilter(t *testing.T) {
 			task: task(taskPorts(80, 443)),
 			application: application(
 				appPorts(80, 443),
-				labels(map[string]string{
-					types.LabelPort:      "443",
-					types.LabelPortIndex: "1",
-				}),
+				label(types.LabelPort, "443"),
+				label(types.LabelPortIndex, "1"),
 			),
 			expected:         false,
 			exposedByDefault: true,
@@ -407,20 +395,17 @@ func TestMarathonApplicationFilterConstraints(t *testing.T) {
 			expected:                false,
 		},
 		{
-			desc: "tag matching",
-			application: application(labels(map[string]string{
-				types.LabelTags: "valid",
-			})),
+			desc:                    "tag matching",
+			application:             application(label(types.LabelTags, "valid")),
 			marathonLBCompatibility: false,
 			expected:                true,
 		},
 		{
 			desc: "LB compatibility tag matching",
-			application: application(labels(map[string]string{
-				"HAPROXY_GROUP": "valid",
-				types.LabelTags: "notvalid",
-			})),
-
+			application: application(
+				label("HAPROXY_GROUP", "valid"),
+				label(types.LabelTags, "notvalid"),
+			),
 			marathonLBCompatibility: true,
 			expected:                true,
 		},
@@ -497,9 +482,7 @@ func TestMarathonApplicationFilterEnabled(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			t.Parallel()
 			provider := &Provider{ExposedByDefault: c.exposedByDefault}
-			app := application(labels(map[string]string{
-				types.LabelEnable: c.enabledLabel,
-			}))
+			app := application(label(types.LabelEnable, c.enabledLabel))
 			if provider.applicationFilter(app) != c.expected {
 				t.Errorf("got unexpected filtering = %t", !c.expected)
 			}
@@ -523,28 +506,22 @@ func TestMarathonGetPort(t *testing.T) {
 			expected:    "",
 		},
 		{
-			desc: "numeric port",
-			application: application(labels(map[string]string{
-				types.LabelPort: "80",
-			})),
-			task:     task(),
-			expected: "80",
+			desc:        "numeric port",
+			application: application(label(types.LabelPort, "80")),
+			task:        task(),
+			expected:    "80",
 		},
 		{
-			desc: "string port",
-			application: application(labels(map[string]string{
-				types.LabelPort: "foobar",
-			})),
-			task:     task(taskPorts(80)),
-			expected: "",
+			desc:        "string port",
+			application: application(label(types.LabelPort, "foobar")),
+			task:        task(taskPorts(80)),
+			expected:    "",
 		},
 		{
-			desc: "negative port",
-			application: application(labels(map[string]string{
-				types.LabelPort: "-1",
-			})),
-			task:     task(taskPorts(80)),
-			expected: "",
+			desc:        "negative port",
+			application: application(label(types.LabelPort, "-1")),
+			task:        task(taskPorts(80)),
+			expected:    "",
 		},
 		{
 			desc:        "task port available",
@@ -573,20 +550,16 @@ func TestMarathonGetPort(t *testing.T) {
 			expected:    "80",
 		},
 		{
-			desc: "numeric port index specified",
-			application: application(labels(map[string]string{
-				types.LabelPortIndex: "1",
-			})),
-			task:     task(taskPorts(80, 443)),
-			expected: "443",
+			desc:        "numeric port index specified",
+			application: application(label(types.LabelPortIndex, "1")),
+			task:        task(taskPorts(80, 443)),
+			expected:    "443",
 		},
 		{
-			desc: "string port index specified",
-			application: application(labels(map[string]string{
-				types.LabelPortIndex: "foobar",
-			})),
-			task:     task(taskPorts(80)),
-			expected: "",
+			desc:        "string port index specified",
+			application: application(label(types.LabelPortIndex, "foobar")),
+			task:        task(taskPorts(80)),
+			expected:    "",
 		},
 		{
 			desc:        "task and application ports specified",
@@ -620,11 +593,9 @@ func TestMarathonGetWeight(t *testing.T) {
 			expected:    "0",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelWeight: "10",
-			})),
-			expected: "10",
+			desc:        "label existing",
+			application: application(label(types.LabelWeight, "10")),
+			expected:    "10",
 		},
 	}
 
@@ -653,11 +624,9 @@ func TestMarathonGetDomain(t *testing.T) {
 			expected:    "docker.localhost",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelDomain: "foo.bar",
-			})),
-			expected: "foo.bar",
+			desc:        "label existing",
+			application: application(label(types.LabelDomain, "foo.bar")),
+			expected:    "foo.bar",
 		},
 	}
 
@@ -688,11 +657,9 @@ func TestMarathonGetProtocol(t *testing.T) {
 			expected:    "http",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelProtocol: "https",
-			})),
-			expected: "https",
+			desc:        "label existing",
+			application: application(label(types.LabelProtocol, "https")),
+			expected:    "https",
 		},
 	}
 
@@ -721,11 +688,9 @@ func TestMarathonGetSticky(t *testing.T) {
 			expected:    "false",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelBackendLoadbalancerSticky: "true",
-			})),
-			expected: "true",
+			desc:        "label existing",
+			application: application(label(types.LabelBackendLoadbalancerSticky, "true")),
+			expected:    "true",
 		},
 	}
 
@@ -754,11 +719,9 @@ func TestMarathonGetPassHostHeader(t *testing.T) {
 			expected:    "true",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelFrontendPassHostHeader: "false",
-			})),
-			expected: "false",
+			desc:        "label existing",
+			application: application(label(types.LabelFrontendPassHostHeader, "false")),
+			expected:    "false",
 		},
 	}
 
@@ -787,18 +750,14 @@ func TestMarathonMaxConnAmount(t *testing.T) {
 			expected:    math.MaxInt64,
 		},
 		{
-			desc: "non-integer value",
-			application: application(labels(map[string]string{
-				types.LabelBackendMaxconnAmount: "foobar",
-			})),
-			expected: math.MaxInt64,
+			desc:        "non-integer value",
+			application: application(label(types.LabelBackendMaxconnAmount, "foobar")),
+			expected:    math.MaxInt64,
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelBackendMaxconnAmount: "32",
-			})),
-			expected: 32,
+			desc:        "label existing",
+			application: application(label(types.LabelBackendMaxconnAmount, "32")),
+			expected:    32,
 		},
 	}
 
@@ -827,11 +786,9 @@ func TestMarathonGetMaxConnExtractorFunc(t *testing.T) {
 			expected:    "request.host",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelBackendMaxconnExtractorfunc: "client.ip",
-			})),
-			expected: "client.ip",
+			desc:        "label existing",
+			application: application(label(types.LabelBackendMaxconnExtractorfunc, "client.ip")),
+			expected:    "client.ip",
 		},
 	}
 
@@ -860,11 +817,9 @@ func TestMarathonGetLoadBalancerMethod(t *testing.T) {
 			expected:    "wrr",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelBackendLoadbalancerMethod: "drr",
-			})),
-			expected: "drr",
+			desc:        "label existing",
+			application: application(label(types.LabelBackendLoadbalancerMethod, "drr")),
+			expected:    "drr",
 		},
 	}
 
@@ -893,11 +848,9 @@ func TestMarathonGetCircuitBreakerExpression(t *testing.T) {
 			expected:    "NetworkErrorRatio() > 1",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelBackendCircuitbreakerExpression: "NetworkErrorRatio() > 0.5",
-			})),
-			expected: "NetworkErrorRatio() > 0.5",
+			desc:        "label existing",
+			application: application(label(types.LabelBackendCircuitbreakerExpression, "NetworkErrorRatio() > 0.5")),
+			expected:    "NetworkErrorRatio() > 0.5",
 		},
 	}
 
@@ -926,11 +879,9 @@ func TestMarathonGetEntryPoints(t *testing.T) {
 			expected:    []string{},
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelFrontendEntryPoints: "http,https",
-			})),
-			expected: []string{"http", "https"},
+			desc:        "label existing",
+			application: application(label(types.LabelFrontendEntryPoints, "http,https")),
+			expected:    []string{"http", "https"},
 		},
 	}
 
@@ -964,28 +915,24 @@ func TestMarathonGetFrontendRule(t *testing.T) {
 			desc: "HAProxy vhost available and LB compat disabled",
 			application: application(
 				appID("test"),
-				labels(map[string]string{
-					"HAPROXY_0_VHOST": "foo.bar",
-				}),
+				label("HAPROXY_0_VHOST", "foo.bar"),
 			),
 			marathonLBCompatibility: false,
 			expected:                "Host:test.docker.localhost",
 		},
 		{
-			desc: "HAProxy vhost available and LB compat enabled",
-			application: application(labels(map[string]string{
-				"HAPROXY_0_VHOST": "foo.bar",
-			})),
+			desc:                    "HAProxy vhost available and LB compat enabled",
+			application:             application(label("HAPROXY_0_VHOST", "foo.bar")),
 			marathonLBCompatibility: true,
 			expected:                "Host:foo.bar",
 		},
 		{
 			desc: "frontend rule available",
 
-			application: application(labels(map[string]string{
-				types.LabelFrontendRule: "Host:foo.bar",
-				"HAPROXY_0_VHOST":       "unused",
-			})),
+			application: application(
+				label(types.LabelFrontendRule, "Host:foo.bar"),
+				label("HAPROXY_0_VHOST", "unused"),
+			),
 			marathonLBCompatibility: true,
 			expected:                "Host:foo.bar",
 		},
@@ -1019,11 +966,9 @@ func TestMarathonGetBackend(t *testing.T) {
 			expected:    "-group-app",
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelBackend: "bar",
-			})),
-			expected: "bar",
+			desc:        "label existing",
+			application: application(label(types.LabelBackend, "bar")),
+			expected:    "bar",
 		},
 	}
 
@@ -1220,9 +1165,7 @@ func TestGetBackendServer(t *testing.T) {
 		{
 			desc: "multiple task IP addresses with invalid index label",
 			application: application(
-				labels(map[string]string{
-					"traefik.ipAddressIdx": "invalid",
-				}),
+				label("traefik.ipAddressIdx", "invalid"),
 				ipAddrPerTask(8000),
 			),
 			task:           task(ipAddresses("1.1.1.1", "2.2.2.2")),
@@ -1231,9 +1174,7 @@ func TestGetBackendServer(t *testing.T) {
 		{
 			desc: "multiple task IP addresses with valid index label",
 			application: application(
-				labels(map[string]string{
-					"traefik.ipAddressIdx": "1",
-				}),
+				label("traefik.ipAddressIdx", "1"),
 				ipAddrPerTask(8000),
 			),
 			task:           task(ipAddresses("1.1.1.1", "2.2.2.2")),
@@ -1325,11 +1266,9 @@ func TestMarathonGetBasicAuth(t *testing.T) {
 			expected:    []string{},
 		},
 		{
-			desc: "label existing",
-			application: application(labels(map[string]string{
-				types.LabelFrontendAuthBasic: "user:password",
-			})),
-			expected: []string{"user:password"},
+			desc:        "label existing",
+			application: application(label(types.LabelFrontendAuthBasic, "user:password")),
+			expected:    []string{"user:password"},
 		},
 	}
 
