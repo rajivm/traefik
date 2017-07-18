@@ -28,6 +28,7 @@ const (
 	traceMaxScanTokenSize = 1024 * 1024
 )
 
+// TaskState denotes the Mesos state a task can have.
 type TaskState string
 
 const (
